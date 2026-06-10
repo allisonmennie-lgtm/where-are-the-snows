@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where are the Snows? 🏴󠁧󠁢󠁥󠁮󠁧󠁿⚽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#012169;--red:#CF142B;--green:#2D6A4F;
+  --sand:#FFF9F2;--white:#ffffff;
+  --text:#0D1B2A;--muted:#64748B;--hint:#94A3B8;
+  --border:rgba(1,33,105,0.10);--radius:14px;
+  --sh:0 2px 12px rgba(1,33,105,0.07);
+}
+body{font-family:'Space Grotesk',sans-serif;background:var(--sand);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.header{background:var(--navy)}
+.header-inner{max-width:980px;margin:0 auto;padding:1.75rem 1.5rem 1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap}
+.flag{font-size:2.6rem;line-height:1;flex-shrink:0}
+.header-text h1{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1.1}
+.header-text h1 em{color:var(--red);font-style:normal}
+.tagline{font-family:'Space Mono',monospace;font-size:0.72rem;color:rgba(255,255,255,0.45);margin-top:0.3rem;letter-spacing:0.04em}
+.header-right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem}
+.updated-label{font-family:'Space Mono',monospace;font-size:0.68rem;color:rgba(255,255,255,0.35)}
+.refresh-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.65);border-radius:7px;padding:0.3rem 0.7rem;font-size:0.75rem;font-family:'Space Grotesk',sans-serif;cursor:pointer;transition:background 0.15s}
+.refresh-btn:hover{background:rgba(255,255,255,0.15)}
+
+/* MAIN */
+.main{max-width:980px;margin:0 auto;padding:1.5rem 1.5rem 5rem}
+
+/* LOADING */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:55vh;gap:1rem}
+.ball{font-size:2rem;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{font-family:'Space Mono',monospace;font-size:0.78rem;color:var(--hint)}
+.error-msg{background:#FEE2E2;border:1px solid #FECACA;border-radius:var(--radius);padding:1.25rem 1.5rem;color:#991B1B;font-size:0.9rem;margin-top:2rem}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.75rem;margin-bottom:1.25rem}
+.stat{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;box-shadow:var(--sh)}
+.stat-label{font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--hint);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.25rem}
+.stat-value{font-size:1.6rem;font-weight:700;color:var(--navy);line-height:1.1}
+.stat-sub{font-size:0.72rem;color:var(--muted);margin-top:0.2rem}
+
+/* NOW CARD */
+.now{background:var(--navy);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;color:#fff;box-shadow:0 4px 20px rgba(1,33,105,0.18)}
+.now-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+@media(max-width:540px){.now-grid{grid-template-columns:1fr}}
+.now-eyebrow{font-family:'Space Mono',monospace;font-size:0.66rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem}
+.now-city{font-size:1.65rem;font-weight:700;letter-spacing:-0.02em;line-height:1.15}
+.now-date{font-size:0.82rem;color:rgba(255,255,255,0.55);margin-top:0.3rem}
+.now-event-badge{display:inline-block;background:var(--red);padding:0.25rem 0.7rem;border-radius:6px;font-size:0.78rem;font-weight:600;margin-top:0.65rem}
+.now-right{border-left:1px solid rgba(255,255,255,0.1);padding-left:1.25rem;display:flex;flex-direction:column;gap:0.55rem}
+@media(max-width:540px){.now-right{border-left:none;border-top:1px solid rgba(255,255,255,0.1);padding-left:0;padding-top:1rem}}
+.now-row{display:flex;gap:0.6rem;font-size:0.84rem;align-items:flex-start;line-height:1.4}
+.now-icon{flex-shrink:0;opacity:0.55;width:18px}
+.next-pill{grid-column:1/-1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:0.8rem 1rem;display:flex;align-items:center;gap:0.75rem;margin-top:0.25rem}
+.next-arrow{font-size:1rem;opacity:0.6}
+.next-label{font-family:'Space Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em}
+.next-city{font-size:0.95rem;font-weight:600;margin-top:0.1rem}
+.next-meta{margin-left:auto;font-size:0.78rem;color:rgba(255,255,255,0.45);text-align:right}
+
+/* PROGRESS */
+.progress-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1.15rem 1.4rem;margin-bottom:1.25rem;box-shadow:var(--sh)}
+.progress-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.65rem}
+.progress-title{font-family:'Space Mono',monospace;font-size:0.68rem;color:var(--hint);text-transform:uppercase;letter-spacing:0.07em}
+.progress-pct{font-size:1rem;font-weight:700;color:var(--navy)}
+.track{height:7px;background:rgba(1,33,105,0.08);border-radius:999px;overflow:hidden}
+.fill{height:100%;background:linear-gradient(90deg,var(--navy),var(--red));border-radius:999px;width:0%;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)}
+.progress-labels{display:flex;justify-content:space-between;margin-top:0.45rem;font-size:0.68rem;font-family:'Space Mono',monospace;color:var(--hint)}
+
+/* MAP */
+.map-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1.25rem;box-shadow:var(--sh)}
+.map-title{padding:0.85rem 1.25rem;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:0.68rem;color:var(--hint);text-transform:uppercase;letter-spacing:0.07em}
+#map{height:500px}
+
+/* TABS */
+.tabs{display:flex;gap:0.2rem;background:rgba(1,33,105,0.06);border-radius:11px;padding:0.25rem;margin-bottom:1rem}
+.tab{flex:1;padding:0.55rem 0.5rem;border:none;background:transparent;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:0.84rem;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.tab.active{background:var(--white);color:var(--navy);font-weight:600;box-shadow:0 1px 5px rgba(1,33,105,0.09)}
+.panel{display:none}
+.panel.active{display:block}
+
+/* ITINERARY */
+.stops{display:flex;flex-direction:column}
+.stop{display:grid;grid-template-columns:68px 1fr;position:relative}
+.stop-comments{grid-column:2;padding:0 0 0.75rem 0.75rem;border-bottom:1px solid var(--border)}
+.stop:last-child .stop-comments{border-bottom:none}
+.stop::before{content:'';position:absolute;left:33px;top:26px;bottom:-4px;width:2px;background:var(--border);z-index:0}
+.stop:last-child::before{display:none}
+.stop-left{padding-top:0.9rem;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;z-index:1}
+.dot{width:11px;height:11px;border-radius:50%;background:rgba(1,33,105,0.15);border:2px solid var(--sand);flex-shrink:0}
+.dot.past{background:var(--navy)}
+.dot.today{width:15px;height:15px;background:var(--red);box-shadow:0 0 0 4px rgba(207,20,43,0.18)}
+.dot.game{background:var(--green);border-radius:3px;transform:rotate(45deg);width:10px;height:10px}
+.stop-day{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--hint);text-align:center;line-height:1.35}
+.stop-right{padding:0.75rem 0 0.35rem 0.75rem}
+.stop-city{font-size:0.93rem;font-weight:600;color:var(--text);display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap}
+.stop-city.today{color:var(--red)}
+.here-badge{background:var(--red);color:#fff;font-size:0.58rem;font-weight:700;padding:0.12rem 0.4rem;border-radius:4px;letter-spacing:0.06em}
+.pills{display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.35rem}
+.pill{font-size:0.7rem;padding:0.18rem 0.5rem;border-radius:999px;font-weight:500;line-height:1.4}
+.pill-match{background:rgba(207,20,43,0.09);color:#9B1020}
+.pill-tv{background:rgba(45,106,79,0.09);color:#1A5C3A}
+.pill-fun{background:rgba(1,33,105,0.07);color:#012169}
+.pill-km{background:rgba(0,0,0,0.05);color:var(--muted)}
+
+/* INLINE COMMENTS */
+
+.comments-toggle{display:inline-flex;align-items:center;gap:0.4rem;background:none;border:1px solid var(--border);border-radius:999px;padding:0.22rem 0.7rem;font-family:'Space Grotesk',sans-serif;font-size:0.72rem;color:var(--muted);cursor:pointer;transition:all 0.15s;margin-top:0.4rem}
+.comments-toggle:hover{border-color:var(--navy);color:var(--navy)}
+.comments-toggle.has-comments{color:var(--navy);font-weight:600;border-color:rgba(1,33,105,0.25)}
+.comments-drawer{display:none;margin-top:0.65rem}
+.comments-drawer.open{display:block}
+.inline-comment{background:rgba(1,33,105,0.03);border:1px solid var(--border);border-radius:9px;padding:0.65rem 0.85rem;margin-bottom:0.4rem;font-size:0.82rem}
+.inline-comment-top{display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;flex-wrap:wrap}
+.ic-name{font-weight:600;font-size:0.8rem;color:var(--text)}
+.ic-badge{font-size:0.62rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:999px}
+.ic-restaurant{background:rgba(207,20,43,0.09);color:#9B1020}
+.ic-todo{background:rgba(45,106,79,0.09);color:#1A5C3A}
+.ic-comment{background:rgba(1,33,105,0.07);color:#012169}
+.ic-time{font-size:0.68rem;color:var(--hint);margin-left:auto}
+.ic-text{color:var(--text);line-height:1.5}
+.add-comment-form{margin-top:0.6rem;background:var(--white);border:1px solid var(--border);border-radius:9px;padding:0.85rem}
+.ac-row{display:flex;gap:0.45rem;margin-bottom:0.45rem;flex-wrap:wrap}
+.ac-row input,.ac-row select,.ac-form textarea{padding:0.48rem 0.7rem;border:1px solid var(--border);border-radius:7px;font-family:'Space Grotesk',sans-serif;font-size:0.8rem;color:var(--text);background:var(--sand);outline:none;transition:border-color 0.15s}
+.ac-row input:focus,.ac-row select:focus,.ac-form textarea:focus{border-color:var(--navy);background:#fff}
+.ac-row input{flex:1;min-width:100px}
+.ac-row select{flex:1;min-width:120px;appearance:none}
+.ac-form textarea{width:100%;resize:vertical;min-height:64px;margin-bottom:0.45rem;display:block}
+.ac-footer{display:flex;align-items:center;gap:0.5rem}
+.ac-submit{background:var(--navy);color:#fff;border:none;padding:0.48rem 1rem;border-radius:7px;font-family:'Space Grotesk',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;transition:opacity 0.15s}
+.ac-submit:hover{opacity:0.85}
+.ac-submit:disabled{opacity:0.45;cursor:not-allowed}
+.ac-msg{font-size:0.75rem;font-weight:500}
+.ac-msg.ok{color:var(--green)}
+.ac-msg.err{color:var(--red)}
+
+/* PHOTOS */
+.photos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0.75rem}
+.photo-card{border-radius:11px;overflow:hidden;border:1px solid var(--border);background:var(--white);box-shadow:var(--sh);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s}
+.photo-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(1,33,105,0.12)}
+.photo-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.photo-meta{padding:0.5rem 0.7rem 0.6rem}
+.photo-meta strong{display:block;font-size:0.82rem;color:var(--text)}
+.photo-meta span{font-size:0.72rem;color:var(--muted)}
+.no-photos{text-align:center;padding:3.5rem 1rem;color:var(--hint)}
+.no-photos .big{font-size:2.5rem;margin-bottom:0.75rem}
+.no-photos p{font-size:0.88rem}
+
+/* UPLOAD */
+.upload-card{background:var(--white);border:1.5px dashed rgba(1,33,105,0.18);border-radius:var(--radius);padding:1.75rem 1.5rem;max-width:460px;margin:0 auto}
+.upload-card h3{font-size:1rem;color:var(--navy);margin-bottom:0.3rem}
+.upload-card p{font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.5}
+.upload-form{display:flex;flex-direction:column;gap:0.6rem}
+.upload-form input,.upload-form textarea{width:100%;padding:0.6rem 0.85rem;border:1px solid var(--border);border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:0.85rem;color:var(--text);background:var(--sand);outline:none;transition:border-color 0.15s}
+.upload-form input:focus,.upload-form textarea:focus{border-color:var(--navy);background:#fff}
+.upload-form textarea{resize:vertical;min-height:72px}
+.upload-btn{background:var(--navy);color:#fff;border:none;padding:0.7rem 1.5rem;border-radius:9px;font-family:'Space Grotesk',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;transition:opacity 0.15s;margin-top:0.25rem}
+.upload-btn:hover{opacity:0.88}
+.upload-btn:disabled{opacity:0.45;cursor:not-allowed}
+.upload-status{font-size:0.82rem;font-weight:500;padding-top:0.25rem}
+.upload-status.ok{color:var(--green)}
+.upload-status.err{color:var(--red)}
+.photo-delete{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.photo-card:hover .photo-delete{display:flex}
+.photo-card{position:relative}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="flag">🏴󠁧󠁢󠁥󠁮󠁧󠁿</div>
+    <div class="header-text">
+      <h1>Where are the <em>Snows?</em></h1>
+      <p class="tagline">FIFA World Cup 2026 · Vancouver → US → home · 15,685 km</p>
+    </div>
+    <div class="header-right">
+      <span class="updated-label" id="updated-label">loading...</span>
+      <button class="refresh-btn" onclick="loadData()">↻ refresh</button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <div class="loading" id="loading">
+    <div class="ball">⚽</div>
+    <p>Locating the Snows...</p>
+  </div>
+  <div id="error-container"></div>
+  <div id="content" style="display:none">
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">km covered</div><div class="stat-value" id="s-km">—</div><div class="stat-sub">of 15,685 total</div></div>
+      <div class="stat"><div class="stat-label">days on road</div><div class="stat-value" id="s-days">—</div><div class="stat-sub">since Jun 10</div></div>
+      <div class="stat"><div class="stat-label">england games</div><div class="stat-value">3</div><div class="stat-sub">group stage ⚽</div></div>
+      <div class="stat"><div class="stat-label">states hit</div><div class="stat-value" id="s-states">—</div><div class="stat-sub">+ BC &amp; home</div></div>
+    </div>
+
+    <div class="now">
+      <div class="now-grid">
+        <div>
+          <div class="now-eyebrow">📍 right now</div>
+          <div class="now-city" id="now-city">—</div>
+          <div class="now-date" id="now-date"></div>
+          <div id="now-event"></div>
+        </div>
+        <div class="now-right" id="now-details"></div>
+        <div class="next-pill" id="next-pill" style="display:none">
+          <span class="next-arrow">→</span>
+          <div>
+            <div class="next-label">next stop</div>
+            <div class="next-city" id="next-city"></div>
+          </div>
+          <div class="next-meta" id="next-meta"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-card">
+      <div class="progress-top">
+        <span class="progress-title">trip progress</span>
+        <span class="progress-pct" id="pct-label">0%</span>
+      </div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="progress-labels">
+        <span>Vancouver</span><span id="km-label">—</span><span>Home</span>
+      </div>
+    </div>
+
+    <div class="map-card">
+      <div class="map-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+        <span>🗺 the route</span>
+        <span style="display:flex;gap:1rem;font-size:0.65rem;font-family:'Space Mono',monospace;color:var(--hint)">
+          <span style="display:flex;align-items:center;gap:0.3rem"><span style="width:12px;height:12px;border-radius:50%;background:#CF142B;display:inline-block"></span>today</span>
+          <span style="display:flex;align-items:center;gap:0.3rem"><span style="width:10px;height:10px;background:#2D6A4F;transform:rotate(45deg);display:inline-block"></span>match day</span>
+          <span style="display:flex;align-items:center;gap:0.3rem"><span style="width:10px;height:10px;border-radius:50%;background:#012169;display:inline-block"></span>visited</span>
+          <span style="display:flex;align-items:center;gap:0.3rem"><span style="width:10px;height:10px;border-radius:50%;background:#CBD5E1;display:inline-block"></span>upcoming</span>
+        </span>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('itinerary',this)">📅 Itinerary</button>
+      <button class="tab" onclick="showTab('photos',this)">📸 Photos</button>
+      <button class="tab" onclick="showTab('upload',this)">⬆️ Upload</button>
+    </div>
+
+    <div class="panel active" id="panel-itinerary">
+      <div class="stops" id="stops-list"></div>
+    </div>
+    <div class="panel" id="panel-photos">
+      <div id="photos-inner"><div class="no-photos"><div class="big">📷</div><p>Loading photos...</p></div></div>
+    </div>
+    <div class="panel" id="panel-upload">
+      <div class="upload-card">
+        <h3>Add a photo 🏴󠁧󠁢󠁥󠁮󠁧󠁿</h3>
+        <p>Snows only — enter the password to upload a shot from the road.</p>
+        <div class="upload-form">
+          <input type="password" id="u-pass" placeholder="Password">
+          <input type="file" id="u-file" accept="image/*">
+          <input type="text" id="u-caption" placeholder="Where was this? e.g. Chicago, IL">
+          <textarea id="u-note" placeholder="Any caption or notes? (optional)"></textarea>
+          <button class="upload-btn" id="u-btn" onclick="doUpload()">Upload photo</button>
+          <div class="upload-status" id="u-status" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var tripData = null;
+var leafMap  = null;
+var commentsCache = {};
+var AS_URL = "https://script.google.com/macros/s/AKfycbwnCLCcTk3gZb5fSMxZkpY8kPuKdBBFbgmKCMqUXN80Q9D1KTKZvlkEH7dwTitmKfFC/exec";
+
+// Replaces google.script.run — calls the Apps Script web app via fetch
+function callAS(fn, params, onSuccess, onFailure) {
+  var url = AS_URL + "?fn=" + encodeURIComponent(fn);
+  if (params) {
+    Object.keys(params).forEach(function(k) {
+      url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(JSON.stringify(params[k]));
+    });
+  }
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.error) { if (onFailure) onFailure(new Error(d.error)); else console.error(d.error); }
+      else { onSuccess(d.result !== undefined ? d.result : d); }
+    })
+    .catch(function(e) { if (onFailure) onFailure(e); else console.error(e); });
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.onload = function() { loadData(); };
+
+function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('content').style.display = 'none';
+  document.getElementById('error-container').innerHTML = '';
+
+  var t = setTimeout(function() { showError('Timed out — try refreshing.'); }, 20000);
+
+  callAS('getTripData', null, function(d) {
+      clearTimeout(t);
+      if (d && d.error) { showError(d.error); return; }
+      tripData = d;
+      render(d);
+      fetchPhotos();
+    }, function(e) {
+      clearTimeout(t);
+      showError(e.message || 'Failed to load.');
+    });
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error-container').innerHTML = '<div class="error-msg">⚠️ ' + esc(msg) + '</div>';
+}
+
+function render(d) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+  document.getElementById('updated-label').textContent =
+    'updated ' + new Date(d.lastUpdated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  renderStats(d);
+  renderNow(d);
+  renderProgress(d);
+  renderMap(d);
+  renderItinerary(d);
+}
+
+function renderStats(d) {
+  var km = d.currentStop ? d.currentStop.cumulativeKm : 0;
+  document.getElementById('s-km').textContent     = km.toLocaleString();
+  document.getElementById('s-days').textContent   = d.daysOnRoad;
+  document.getElementById('s-states').textContent = d.statesCount;
+}
+
+function renderNow(d) {
+  var s = d.currentStop;
+  if (!s) return;
+  document.getElementById('now-city').textContent = s.staying;
+  document.getElementById('now-date').textContent = s.dateFormatted + (s.isToday ? ' · TODAY' : '');
+  if (s.event) {
+    document.getElementById('now-event').innerHTML =
+      '<div class="now-event-badge">🏟 ' + esc(s.event) +
+      (s.location ? ' · ' + esc(s.location) : '') +
+      (s.time ? ' @ ' + esc(s.time) : '') + '</div>';
+  }
+  var det = '';
+  if (s.wcGames) det += '<div class="now-row"><span class="now-icon">📺</span><span>' + esc(s.wcGames) + '</span></div>';
+  if (s.fun)     det += '<div class="now-row"><span class="now-icon">✨</span><span>' + esc(s.fun) + '</span></div>';
+  if (s.km)      det += '<div class="now-row"><span class="now-icon">🛣</span><span>' + s.km.toLocaleString() + ' km today</span></div>';
+  if (!det)      det  = '<div style="font-size:0.82rem;opacity:0.4">No notes for today</div>';
+  document.getElementById('now-details').innerHTML = det;
+  if (d.nextStop) {
+    document.getElementById('next-pill').style.display = 'flex';
+    document.getElementById('next-city').textContent   = d.nextStop.staying;
+    document.getElementById('next-meta').textContent   =
+      d.nextStop.dateFormatted + (d.nextStop.km ? ' · ' + d.nextStop.km.toLocaleString() + ' km' : '');
+  }
+}
+
+function renderProgress(d) {
+  var total = 15685;
+  var done  = d.currentStop ? d.currentStop.cumulativeKm : 0;
+  var pct   = Math.min(100, Math.round((done / total) * 100));
+  document.getElementById('pct-label').textContent = pct + '%';
+  document.getElementById('km-label').textContent  = done.toLocaleString() + ' / ' + total.toLocaleString() + ' km';
+  setTimeout(function() { document.getElementById('fill').style.width = pct + '%'; }, 120);
+}
+
+function renderMap(d) {
+  if (leafMap) { leafMap.remove(); leafMap = null; }
+  leafMap = L.map('map', { scrollWheelZoom: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18
+  }).addTo(leafMap);
+  var pts = d.stops.filter(function(s) { return s.lat && s.lng; });
+  if (!pts.length) return;
+  var all      = pts.map(function(s) { return [s.lat, s.lng]; });
+  var traveled = pts.filter(function(s) { return s.isPast || s.isToday; }).map(function(s) { return [s.lat, s.lng]; });
+  L.polyline(all, { color:'#012169', weight:2, opacity:0.15, dashArray:'5,7' }).addTo(leafMap);
+  if (traveled.length > 1) L.polyline(traveled, { color:'#012169', weight:3, opacity:0.75 }).addTo(leafMap);
+  pts.forEach(function(s) {
+    var ihtml;
+    if (s.isToday) {
+      ihtml = '<div style="width:26px;height:26px;border-radius:50%;background:#CF142B;border:3px solid #fff;box-shadow:0 0 0 5px rgba(207,20,43,0.2),0 2px 8px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:13px">📍</div>';
+    } else if (s.event) {
+      ihtml = '<div style="width:22px;height:22px;background:#2D6A4F;border:2px solid #fff;transform:rotate(45deg);border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,0.2)"></div>';
+    } else if (s.isPast) {
+      ihtml = '<div style="width:14px;height:14px;border-radius:50%;background:#012169;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2)"></div>';
+    } else {
+      ihtml = '<div style="width:11px;height:11px;border-radius:50%;background:#CBD5E1;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.15)"></div>';
+    }
+    var icon = L.divIcon({ html:ihtml, className:'', iconSize:[28,28], iconAnchor:[14,14] });
+    var popup = '<div style="font-family:Space Grotesk,sans-serif;min-width:155px;font-size:13px">'
+      + '<strong>' + esc(s.staying) + '</strong>'
+      + '<div style="color:#64748B;margin-top:3px">' + s.dateFormatted + (s.isToday ? ' <strong style="color:#CF142B">· TODAY</strong>' : '') + '</div>'
+      + (s.event   ? '<div style="color:#1A5C3A;margin-top:5px">🏟 ' + esc(s.event) + '</div>' : '')
+      + (s.km      ? '<div style="color:#64748B;margin-top:3px">🛣 ' + s.km.toLocaleString() + ' km</div>' : '')
+      + (s.wcGames ? '<div style="margin-top:3px">📺 ' + esc(s.wcGames) + '</div>' : '')
+      + '</div>';
+    L.marker([s.lat, s.lng], { icon:icon }).bindPopup(popup).addTo(leafMap);
+  });
+  leafMap.fitBounds(L.latLngBounds(all), { padding:[30,30] });
+}
+
+function renderItinerary(d) {
+  var html = '';
+  d.stops.forEach(function(s, idx) {
+    var parts   = s.dateFormatted.split(' ');
+    var dayStr  = parts[0] + '<br>' + parts[1] + '&nbsp;' + parts[2];
+    var dotCls  = 'dot' + (s.isToday ? ' today' : (s.isPast ? (s.event ? ' game' : ' past') : ''));
+    var cityCls = 'stop-city' + (s.isToday ? ' today' : '');
+    var pills   = '';
+    if (s.event)   pills += '<span class="pill pill-match">🏴󠁧󠁢󠁥󠁮󠁧󠁿 ' + esc(s.event) + '</span>';
+    if (s.wcGames) pills += '<span class="pill pill-tv">📺 ' + esc(s.wcGames) + '</span>';
+    if (s.fun)     pills += '<span class="pill pill-fun">✨ ' + esc(s.fun) + '</span>';
+    if (s.km)      pills += '<span class="pill pill-km">🛣 ' + s.km.toLocaleString() + ' km</span>';
+    html +=
+      '<div class="stop">'
+      + '<div class="stop-left"><div class="' + dotCls + '"></div><div class="stop-day">' + dayStr + '</div></div>'
+      + '<div class="stop-right">'
+      + '<div class="' + cityCls + '">' + esc(s.staying) + (s.isToday ? '<span class="here-badge">YOU ARE HERE</span>' : '') + '</div>'
+      + (pills ? '<div class="pills">' + pills + '</div>' : '')
+      + '</div>'
+      + '<div class="stop-comments" id="sc-' + idx + '"></div>'
+      + '</div>';
+  });
+  document.getElementById('stops-list').innerHTML = html;
+
+  d.stops.forEach(function(s, idx) {
+    var sc  = document.getElementById('sc-' + idx);
+    var btn = document.createElement('button');
+    btn.className   = 'comments-toggle';
+    btn.id          = 'toggle-' + idx;
+    btn.textContent = '💬 Tips & recs';
+    btn.addEventListener('click', function() { toggleDrawer(idx, s.staying); });
+    var drawer = document.createElement('div');
+    drawer.className = 'comments-drawer';
+    drawer.id        = 'drawer-' + idx;
+    sc.appendChild(btn);
+    sc.appendChild(drawer);
+  });
+}
+
+function toggleDrawer(idx, city) {
+  var drawer = document.getElementById('drawer-' + idx);
+  var toggle = document.getElementById('toggle-' + idx);
+  if (!drawer) return;
+  if (drawer.classList.contains('open')) {
+    drawer.classList.remove('open');
+    return;
+  }
+  drawer.classList.add('open');
+  if (!commentsCache[city]) {
+    drawer.innerHTML = '<div style="font-size:0.75rem;color:var(--hint);padding:0.5rem 0.25rem">Loading...</div>';
+    callAS('getCommentsByCity', {city: city}, function(data) {
+      commentsCache[city] = data || [];
+      renderDrawer(city, idx);
+    }, function() {
+      drawer.innerHTML = '<div style="font-size:0.75rem;color:var(--red);padding:0.5rem">Could not load tips.</div>';
+    });
+  } else {
+    renderDrawer(city, idx);
+  }
+}
+
+function renderDrawer(city, idx) {
+  var items  = commentsCache[city] || [];
+  var drawer = document.getElementById('drawer-' + idx);
+  var toggle = document.getElementById('toggle-' + idx);
+  if (!drawer) return;
+  if (toggle) {
+    toggle.textContent = items.length ? '💬 ' + items.length + ' tip' + (items.length > 1 ? 's' : '') : '💬 Tips & recs';
+    toggle.classList.toggle('has-comments', items.length > 0);
+  }
+  var html = '';
+  items.forEach(function(c) {
+    var cls   = 'ic-' + (c.type || 'comment');
+    var label = c.type === 'restaurant' ? '🍽 Restaurant' : (c.type === 'todo' ? '📍 To do' : '💬');
+    var time  = '';
+    try { time = new Date(c.submittedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); } catch(e){}
+    html += '<div class="inline-comment">'
+      + '<div class="inline-comment-top">'
+      + '<span class="ic-name">' + esc(c.name||'Anonymous') + '</span>'
+      + '<span class="ic-badge ' + cls + '">' + label + '</span>'
+      + (time ? '<span class="ic-time">' + time + '</span>' : '')
+      + '</div>'
+      + '<div class="ic-text">' + esc(c.text) + '</div>'
+      + '</div>';
+  });
+  html += '<div class="add-comment-form">'
+    + '<div class="ac-row">'
+    + '<input type="text" id="ac-name-' + idx + '" placeholder="Your name (optional)">'
+    + '<select id="ac-type-' + idx + '"><option value="comment">💬 Comment</option><option value="restaurant">🍽 Restaurant rec</option><option value="todo">📍 Thing to do</option></select>'
+    + '</div>'
+    + '<div class="ac-form"><textarea id="ac-text-' + idx + '" placeholder="Your tip for ' + esc(city) + '..."></textarea></div>'
+    + '<div class="ac-footer">'
+    + '<button class="ac-submit" id="ac-btn-' + idx + '">Post</button>'
+    + '<span class="ac-msg" id="ac-msg-' + idx + '"></span>'
+    + '</div></div>';
+  drawer.innerHTML = html;
+  var btn = document.getElementById('ac-btn-' + idx);
+  if (btn) btn.addEventListener('click', function() { submitStopComment(city, idx); });
+}
+
+function submitStopComment(city, idx) {
+  var name = document.getElementById('ac-name-' + idx).value.trim();
+  var type = document.getElementById('ac-type-' + idx).value;
+  var text = document.getElementById('ac-text-' + idx).value.trim();
+  var btn  = document.getElementById('ac-btn-' + idx);
+  var msg  = document.getElementById('ac-msg-' + idx);
+  if (!text) { msg.className='ac-msg err'; msg.textContent='Write something first!'; return; }
+  btn.disabled = true; btn.textContent = 'Posting...';
+  callAS('submitComment', {name:name, city:city, type:type, text:text}, function(res) {
+    if (res.success) {
+      msg.className='ac-msg ok'; msg.textContent='Posted!';
+      document.getElementById('ac-text-' + idx).value = '';
+      document.getElementById('ac-name-' + idx).value = '';
+      btn.disabled=false; btn.textContent='Post';
+      delete commentsCache[city];
+      callAS('getCommentsByCity', {city:city}, function(data) { commentsCache[city]=data||[]; renderDrawer(city,idx); }, function(){});
+    } else {
+      msg.className='ac-msg err'; msg.textContent=res.error||'Failed';
+      btn.disabled=false; btn.textContent='Post';
+    }
+  }, function(e) {
+    msg.className='ac-msg err'; msg.textContent=e.message||'Failed';
+    btn.disabled=false; btn.textContent='Post';
+  });
+}
+
+function fetchPhotos() {
+  callAS('getPhotos', null, function(photos) {
+      if (!photos || !photos.length) {
+        document.getElementById('photos-inner').innerHTML = '<div class="no-photos"><div class="big">📷</div><p>No photos yet — be the first!</p></div>';
+        return;
+      }
+      renderPhotoShells(photos);
+      photos.forEach(function(p, i) {
+        callAS('getPhotoData', {fileId: p.id}, function(imgData) {
+          var img = document.getElementById('photo-img-' + i);
+          if (img && imgData) {
+            img.src = imgData;
+            img.style.display = 'block';
+            img.previousSibling && (img.previousSibling.style.display = 'none');
+          }
+        }, function() {});
+      });
+    }, function() {
+      document.getElementById('photos-inner').innerHTML = '<div class="no-photos"><p>Error loading photos.</p></div>';
+    });
+}
+
+function renderPhotoShells(photos) {
+  var el = document.getElementById('photos-inner');
+  var html = '<div class="photos-grid">';
+  photos.forEach(function(p, i) {
+    html += '<div class="photo-card" id="photo-card-' + i + '" style="position:relative">'
+      + '<div onclick="window.open(\'' + p.fullUrl + '\',\'_blank\')" style="cursor:pointer">'
+      + '<div id="photo-placeholder-' + i + '" style="aspect-ratio:4/3;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:2rem">📷</div>'
+      + '<img id="photo-img-' + i + '" src="" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;display:none">'
+      + '</div>'
+      + '<div class="photo-meta"><strong>' + esc(p.caption||'On the road') + '</strong><span>' + esc(p.stopDate||'') + '</span></div>'
+      + '<button onclick="doDeletePhoto(\'' + p.id + '\',' + i + ')" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:none" class="del-btn">✕</button>'
+      + '</div>';
+  });
+  el.innerHTML = html + '</div>';
+  // Show delete buttons on hover
+  document.querySelectorAll('.photo-card').forEach(function(card) {
+    var btn = card.querySelector('.del-btn');
+    card.addEventListener('mouseenter', function() { if(btn) btn.style.display='flex'; });
+    card.addEventListener('mouseleave', function() { if(btn) btn.style.display='none'; });
+  });
+}
+
+function doDeletePhoto(fileId, idx) {
+  var pass = prompt("Password to delete:");
+  if (!pass) return;
+  var card = document.getElementById("photo-card-" + idx);
+  if (card) card.style.opacity = "0.4";
+  callAS('deletePhoto', {fileId:fileId, password:pass}, function(res) {
+    if (res.success) {
+      if (card) card.remove();
+    } else {
+      if (card) card.style.opacity = "1";
+      alert(res.error || "Wrong password");
+    }
+  }, function() {
+    if (card) card.style.opacity = "1";
+  });
+}
+
+
+
+
+function doUpload() {
+  var pass=document.getElementById('u-pass').value;
+  var file=document.getElementById('u-file').files[0];
+  var cap=document.getElementById('u-caption').value.trim();
+  var note=document.getElementById('u-note').value.trim();
+  var btn=document.getElementById('u-btn');
+  if (!pass){setUStatus('Enter the password first.',true);return;}
+  if (!file){setUStatus('Pick a photo first.',true);return;}
+  btn.disabled=true; btn.textContent='Uploading...';
+  setUStatus('Uploading...',false);
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var b64=e.target.result.split(',')[1];
+    var today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    callAS('uploadPhoto', {base64Data:b64, fileName:file.name, caption:cap+(note?' - '+note:''), stopDate:today, password:pass}, function(res){
+      if (!res) { setUStatus('Error: no response',true); btn.disabled=false; btn.textContent='Try again'; return; }
+      if(res.success){
+        setUStatus('Uploaded!',false);
+        btn.textContent='Upload another'; btn.disabled=false;
+        document.getElementById('u-file').value='';
+        document.getElementById('u-caption').value='';
+        document.getElementById('u-note').value='';
+        fetchPhotos();
+        setTimeout(function(){showTab('photos',document.querySelectorAll('.tab')[1]);},1000);
+      } else {
+        setUStatus('Failed: '+(res.error||'unknown error'),true);
+        btn.disabled=false; btn.textContent='Try again';
+      }
+    }, function(e){
+      setUStatus('Error: '+(e.message||'unknown'),true);
+      btn.disabled=false; btn.textContent='Try again';
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function setUStatus(msg,isErr){
+  var el=document.getElementById('u-status');
+  el.style.display='block';
+  el.className='upload-status '+(isErr?'err':'ok');
+  el.textContent=msg;
+}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='photos') fetchPhotos();
+}
+</script>
+</body>
+</html>
