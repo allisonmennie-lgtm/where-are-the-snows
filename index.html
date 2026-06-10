@@ -284,29 +284,48 @@ var leafMap  = null;
 var commentsCache = {};
 var AS_URL = "https://script.google.com/macros/s/AKfycbwnCLCcTk3gZb5fSMxZkpY8kPuKdBBFbgmKCMqUXN80Q9D1KTKZvlkEH7dwTitmKfFC/exec";
 
-// Calls the Apps Script web app via fetch
+// Calls Apps Script via JSONP (only way to avoid CORS)
+var _jsonpCallbacks = {};
+var _jsonpCounter = 0;
+
 function callAS(fn, params, onSuccess, onFailure) {
-  var url = AS_URL + "?fn=" + encodeURIComponent(fn);
+  var cbName = '_jsonp_' + (++_jsonpCounter);
+  var url = AS_URL + "?fn=" + encodeURIComponent(fn) + "&callback=" + cbName;
   if (params) {
     Object.keys(params).forEach(function(k) {
       url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(JSON.stringify(params[k]));
     });
   }
-  fetch(url, {
-    redirect: 'follow',
-    credentials: 'omit',
-    headers: { 'Content-Type': 'application/json' }
-  })
-    .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    })
-    .then(function(text) {
-      var d = JSON.parse(text);
-      if (d && d.error) { if (onFailure) onFailure(new Error(d.error)); else console.error(d.error); }
-      else { onSuccess(d.result !== undefined ? d.result : d); }
-    })
-    .catch(function(e) { if (onFailure) onFailure(e); else console.error(e); });
+
+  var timeout = setTimeout(function() {
+    delete window[cbName];
+    if (onFailure) onFailure(new Error('Request timed out'));
+  }, 30000);
+
+  window[cbName] = function(d) {
+    clearTimeout(timeout);
+    delete window[cbName];
+    try {
+      if (d && d.error) {
+        if (onFailure) onFailure(new Error(d.error));
+      } else {
+        onSuccess(d.result !== undefined ? d.result : d);
+      }
+    } catch(e) {
+      if (onFailure) onFailure(e);
+    }
+  };
+
+  var script = document.createElement('script');
+  script.src = url;
+  script.onerror = function() {
+    clearTimeout(timeout);
+    delete window[cbName];
+    if (onFailure) onFailure(new Error('Failed to load'));
+  };
+  document.head.appendChild(script);
+  // Clean up script tag after load
+  script.onload = function() { document.head.removeChild(script); };
 }
 
 function esc(str) {
